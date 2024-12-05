@@ -1,154 +1,154 @@
 #include <iostream>
-#include <string>
 
-// Функція приймає незмінний масив строкових значень типу char та перетворює його у тип integer
-int stringToInt(const char* str) {
-	int num = 0;
+struct Token {
+    char type;
+    int value;
+    char op;
+};
 
-	// Перебираємо значення масиву, поки не дійдемо до '\0' (кінець масиву)
-	for (int i = 0; str[i] != '\0'; i++) {
-		num = num * 10 + (str[i] - '0');
+// 'n' - число
+// 'o' - операія
+// 'p' - дужки
 
-		/*
-		Цикл працює за такою схемою:
-			0 * 10 + 1 = 1
-			1 * 10 + 2 = 12
-			12 * 10 + 3 = 123
+int factorial(int n) {
+    if (n==0 || n==1) return 1;
 
-		Наприклад, ми передали цій функії результат вводу - 7935
-		'0' = 48 - Нам треба нуль у вигляді строки для віднімання
-		'7' = 55 - str[0]
-		'9' = 57 - str[1]
-		'3' = 51 - str[2]
-		'5' = 53 - str[3]
+    int result = 1;
 
-		У випадку, якщо ми віднімаємо строку від строки - ми віднімаємо їх ASCII коди, наприклад:
-			'0' - '1' = 48 - 49 = 1, де 1 тепер перетворився у тип int
+    for (int i = 2; i<=n; i++) {
+        result *= i;
+    }
 
-		0 строка масива str[i] - це '7'
-			str[i] - '0' = 55 - 48 = 7
-			num * 10 + 7 = 0 * 10 + 7 = 0 + 7 = 7
-			num = 7
-
-		1 строка масива str[i] - це '9'
-			str[i] - '0' = 57 - 48 = 9
-			num * 10 + 9 = 7 * 10 = 70 + 9 = 79
-			num = 79
-
-		2 строка масива str[i] - це '3'
-			str[i] - '0' = 51 - 48 = 3
-			num * 10 + 3 = 79 * 10 = 790 + 3 = 793
-			num = 793
-
-		3 строка масиву str[i] - це '5'
-			str[i] - '0' = 53 - 48 = 5
-			num * 10 + 5 = 793 * 10 = 7930 + 5 = 7935
-			num = 7935
-
-		Таким чином, у нас виходить з строкового масиву char '7', '8', '3', '5' - 7935 типу int
-		*/
-	}
-
-	// Повертаєм результат операції фунції
-	return num;
+    return result;
 }
 
 
-int calculate(int a, int b, char op) {
-	/*
-	Я спочатку писав на switch, але зрозумів, що так буде корочше і зрозуміліше
+int tokenize(const char* input, Token* tokens) {
+    int i = 0, t = 0;
 
-	switch (op) {
-		case '+':
-			return a + b;
-		case '-':
-			return a - b;
-		case '*':
-			return a * b;
-		case '/':
-			return a / b;
-		default:
-			return 0;
+    while (input[i]!='\0') {
+        if (input[i]>='0' && input[i]<='9') {
+            int value = 0;
+
+            while (input[i]>='0' && input[i]<='9') {
+                value = value * 10 + (input[i] - '0');
+                i++;
+            }
+
+            tokens[t++] = {'n', value, '\0'};
+
+        } else if (input[i]=='+' || input[i]=='-' || input[i]=='*' || input[i]=='/' || input[i]=='^' || input[i]=='!') {
+            tokens[t++] = {'o', 0, input[i]};
+            i++;
+
+        } else if (input[i]=='(' || input[i]==')') {
+            tokens[t++] = {'p', 0, input[i]};
+            i++;
+
+        } else {
+            return 0;
+        }
+    }
+
+    return t;
 }
-	*/
 
-	if (op=='+') return a+b;
-	if (op=='-') return a-b;
-	if (op=='*') return a*b;
-	if (op=='/') return a/b;
 
-	// Якщо оператор не був впізнаний
-	return 0;
+int precedence(char op) {
+    if (op=='+' || op=='-') return 1;
+    if (op=='*' || op=='/') return 2;
+    if (op=='^') return 3;
+    if (op=='!') return 4;
+
+    return 0;
+}
+
+
+// Reverse Polish notation
+int RPN(Token* tokens, int tokenCount, Token* output) {
+    Token stack[100];
+    int stackIndex = -1, outIndex = 0;
+
+    for (int i = 0; i<tokenCount; i++) {
+        if (tokens[i].type=='n') {
+            output[outIndex++] = tokens[i];
+
+        } else if (tokens[i].type=='o') {
+            while (stackIndex>=0 && precedence(stack[stackIndex].op)>=precedence(tokens[i].op)) {
+                output[outIndex++] = stack[stackIndex--];
+            }
+
+            stack[++stackIndex] = tokens[i];
+
+        } else if (tokens[i].type=='p') {
+            if (tokens[i].op=='(') {
+                stack[++stackIndex] = tokens[i];
+
+            } else if (tokens[i].op==')') {
+                while (stackIndex>=0 && stack[stackIndex].op!='(') {
+                    output[outIndex++] = stack[stackIndex--];
+                }
+
+                stackIndex--;
+            }
+        }
+    }
+
+    while (stackIndex>=0) {
+        output[outIndex++] = stack[stackIndex--];
+    }
+
+    return outIndex;
+}
+
+
+int evaluateRPN(Token* rpnTokens, int rpnCount) {
+    int stack[100];
+    int stackIndex = -1;
+
+    for (int i = 0; i<rpnCount; i++) {
+        if (rpnTokens[i].type=='n') {
+            stack[++stackIndex] = rpnTokens[i].value;
+
+        } else if (rpnTokens[i].type=='o') {
+            if (rpnTokens[i].op=='!') {
+                int a = stack[stackIndex--];
+                stack[++stackIndex] = factorial(a);
+
+            } else {
+                int b = stack[stackIndex--];
+                int a = stack[stackIndex--];
+
+                if (rpnTokens[i].op=='+') stack[++stackIndex] = a+b;
+                if (rpnTokens[i].op=='-') stack[++stackIndex] = a-b;
+                if (rpnTokens[i].op=='*') stack[++stackIndex] = a*b;
+                if (rpnTokens[i].op=='/') stack[++stackIndex] = a/b;
+                if (rpnTokens[i].op=='^') {
+                    int result = 1;
+
+                    for (int j = 0; j<b; j++) {
+                        result *= a;
+                    }
+
+                    stack[++stackIndex] = result;
+                }
+            }
+        }
+    }
+
+    return stack[stackIndex];
 }
 
 
 int main() {
-	std::cout << "Без пробілу!!!" << std::endl;
-	// На відміну від char, тип string автоматично виділяє і звільняє пам'ять залежно від довжини рядка
-	std::string input;
+    char input[100];
+    Token tokens[100], rpnTokens[100];
 
-	// Безкінечний цикл, який дозволяє писати у консоль програми безкінечно
-	while (true) {
-		std::cin >> input;
+    while (std::cin >> input) {
+        int tokenCount = tokenize(input, tokens);
+        int rpnCount = RPN(tokens, tokenCount, rpnTokens);
+        int result = evaluateRPN(rpnTokens, rpnCount);
 
-		// Результат обчислення
-		int result = 0;
-		// Оператор буде визначений у ході роботи програми
-		char currentOp = ' ';
-		// Масив, створений із input
-		// Було б бажано його перетворити у тип string, але для роботи з індексами мені зручніше використовувати char[]
-		char currentNumber[10];
-		// Номер індексу
-		int numIndex = 0;
-
-		// // Якщо символ є цифрою (перевірка на ASCII код цифр)
-		for (int i = 0; input[i] != '\0'; i++) {
-			char ch = input[i];
-
-			// Якщо ASCII код має значення меньше 48, або більше 57
-			if (ch>='0' && ch<='9') {
-				// Додаємо цифру до масиву currentNumber
-				// Оператор ++ збільшує numIndex по одиниці, поки не обробимо всі елементи масиву
-				currentNumber[numIndex++] = ch;
-			// Якщо ні - оператор
-			} else {
-				// Цикл перебирає і визначає цифри у масиві до тих пір, поки не знайде у масиві строку з ASCII кодом меньше 48, або 57
-				// Тобто, поки він не знайде оператор, після того як він знайшов оператор, він переходить у цей блок коду
-				// Перевірка на те, чи перебирали і визначали ми цифри у масиві
-				if (numIndex>0) {
-					// Я не знав як зробити по-інакшому, тому просто роблю у кінці масива нульовий байт
-					// Нульовий байт в кінці масиву потрібен, щоб функція stringToInt розуміла, де кінець рядка
-					currentNumber[numIndex] = '\0';
-					// Перетвоюємо введені числа з типу char у integer, щоб ми могли їх обчіслити
-					int num = stringToInt(currentNumber);
-					// Визначаємо значення оператора у currentOp
-
-					if (currentOp==' ') {
-						result = num;
-					} else {
-						// Передаємо аргументи на обчислення
-						result = calculate(result, num, currentOp);
-					}
-
-					// Обнуляємо значення numIndex для наступного числа
-					numIndex = 0;
-				}
-
-				// // Оновлюємо оператор
-				currentOp = ch;
-			}
-		}
-
-		// Без цієї умов, программа не обробляє кінцеве число
-		// Коли цикл закінчується, останнє число не буде оброблено, якщо воно не йде після оператора
-		// Таким чином, у нас без цієї умови виходить 10+10+20=20
-		if (numIndex>0) {
-			currentNumber[numIndex] = '\0';
-			int num = stringToInt(currentNumber);
-			result = calculate(result, num, currentOp);
-		}
-
-		// Виводимо результат обчислення
-		std::cout << result << std::endl;
-	}
+        std::cout << result << std::endl;
+    }
 }
